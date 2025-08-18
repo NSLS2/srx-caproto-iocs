@@ -17,7 +17,7 @@ jobs:
     name: Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v5
@@ -58,7 +58,7 @@ jobs:
         shell: bash -l {0}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -80,7 +80,7 @@ jobs:
       #     allow-prereleases: true
 
       - name: Set up Python ${{ matrix.python-version }} with conda
-        uses: mamba-org/setup-micromamba@v1
+        uses: mamba-org/setup-micromamba@v2
         with:
           init-shell: bash
           environment-name: ${{env.REPOSITORY_NAME}}-py${{matrix.python-version}}
@@ -106,4 +106,4 @@ jobs:
           retention-days: 14
 
       - name: Upload coverage report
-        uses: codecov/codecov-action@v4.5.0
+        uses: codecov/codecov-action@v5.4.3
