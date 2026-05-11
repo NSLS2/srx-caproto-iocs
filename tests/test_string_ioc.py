@@ -11,7 +11,7 @@ STRING_39 = string.ascii_letters[:LIMIT]
 STRING_LONGER = string.ascii_letters
 
 
-@pytest.mark.cloud_friendly()
+@pytest.mark.cloud_friendly
 @pytest.mark.parametrize("value", [STRING_39, STRING_LONGER])
 def test_strings(
     caproto_ioc_channel_types,
@@ -47,8 +47,8 @@ def test_strings(
     ophyd_channel_types.char_type.put(value)
 
 
-@pytest.mark.cloud_friendly()
-@pytest.mark.needs_epics_core()
+@pytest.mark.cloud_friendly
+@pytest.mark.needs_epics_core
 def test_cainfo(caproto_ioc_channel_types, ophyd_channel_types):
     for cpt in sorted(ophyd_channel_types.component_names):
         command = ["cainfo", getattr(ophyd_channel_types, cpt).pvname]
@@ -74,8 +74,8 @@ def test_cainfo(caproto_ioc_channel_types, ophyd_channel_types):
             assert "Native data type: DBF_CHAR" in stdout
 
 
-@pytest.mark.cloud_friendly()
-@pytest.mark.needs_epics_core()
+@pytest.mark.cloud_friendly
+@pytest.mark.needs_epics_core
 @pytest.mark.parametrize("value", [STRING_39, STRING_LONGER])
 def test_caput(caproto_ioc_channel_types, ophyd_channel_types, value):
     option = ""

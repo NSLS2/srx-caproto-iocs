@@ -77,7 +77,7 @@ def base_caproto_ioc(wait=5):
     print(f"STDERR:\n{sep}\n{std_err}")
 
 
-@pytest.fixture()
+@pytest.fixture
 def base_ophyd_device():
     dev = OphydDeviceWithCaprotoIOC(
         OPHYD_PV_PREFIX, name="ophyd_device_with_caproto_ioc"
@@ -106,7 +106,7 @@ def caproto_ioc_channel_types(wait=5):
     print(f"STDERR:\n{sep}\n{std_err}")
 
 
-@pytest.fixture()
+@pytest.fixture
 def ophyd_channel_types():
     dev = OphydChannelTypes(OPHYD_PV_PREFIX, name="ophyd_channel_type")
     letters = iter(string.ascii_letters)
