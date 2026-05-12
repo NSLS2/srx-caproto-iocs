@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import textwrap
 from enum import Enum
-from typing import Optional
 
 from caproto import ChannelType
 from caproto.server import pvproperty, run, template_arg_parser
@@ -185,7 +184,7 @@ class ZebraSaveIOC(CaprotoSaveIOC):
     def __init__(
         self,
         *args,
-        dataset_map: Optional[dict[str, str]] = None,
+        dataset_map: dict[str, str] | None = None,
         **kwargs,
     ):
         """Init method.

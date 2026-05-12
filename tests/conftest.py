@@ -44,10 +44,19 @@ def get_epics_env():
     }
 
 
-def start_ioc_subprocess(ioc_name="srx_caproto_iocs.base", pv_prefix=CAPROTO_PV_PREFIX, extra_args=()):
+def start_ioc_subprocess(
+    ioc_name="srx_caproto_iocs.base", pv_prefix=CAPROTO_PV_PREFIX, extra_args=()
+):
     env = get_epics_env()
 
-    command = [sys.executable, "-m", ioc_name, f"--prefix={pv_prefix}", "--list-pvs", *extra_args]
+    command = [
+        sys.executable,
+        "-m",
+        ioc_name,
+        f"--prefix={pv_prefix}",
+        "--list-pvs",
+        *extra_args,
+    ]
     print(
         f"\nStarting caproto IOC in via a fixture using the following command:\n\n  {' '.join(command)}\n"
     )
@@ -82,7 +91,7 @@ def base_caproto_ioc(wait=5):
     print(f"STDERR:\n{sep}\n{std_err}")
 
 
-@pytest.fixture()
+@pytest.fixture
 def base_ophyd_device():
     dev = OphydDeviceWithCaprotoIOC(
         OPHYD_PV_PREFIX, name="ophyd_device_with_caproto_ioc"
@@ -111,7 +120,7 @@ def caproto_ioc_channel_types(wait=5):
     print(f"STDERR:\n{sep}\n{std_err}")
 
 
-@pytest.fixture()
+@pytest.fixture
 def ophyd_channel_types():
     dev = OphydChannelTypes(OPHYD_PV_PREFIX, name="ophyd_channel_type")
     letters = iter(string.ascii_letters)
@@ -165,14 +174,14 @@ def zebra_caproto_ioc_custom_map(wait=5):
     print(f"STDERR:\n{sep}\n{std_err}")
 
 
-@pytest.fixture()
+@pytest.fixture
 def zebra_ophyd_device():
     dev = ZebraWithCaprotoIOC(ZEBRA_OPHYD_PV_PREFIX, name="zebra_with_caproto_ioc")
     yield dev
     dev.ioc_stage.put("unstaged")
 
 
-@pytest.fixture()
+@pytest.fixture
 def zebra_ophyd_device_custom_map():
     prefix = "ZEBRA_CUSTOM:{Dev:Save1}:"
     dev = ZebraWithCaprotoIOC(prefix, name="zebra_custom_map")

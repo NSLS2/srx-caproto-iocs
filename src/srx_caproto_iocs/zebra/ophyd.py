@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from caproto import ChannelType
 from ophyd import Component as Cpt
 from ophyd import EpicsSignal, EpicsSignalRO
 

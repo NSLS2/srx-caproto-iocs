@@ -17,10 +17,6 @@ def test_zebra_default_map_zebra_dev_type(zebra_caproto_ioc, zebra_ophyd_device)
 
     dev = zebra_ophyd_device
 
-    # Put some recognisable test values into the data PVs.
-    dev.enc1.parent  # ensure connected
-    test_values = {"enc1": [1.1], "enc2": [2.2], "enc3": [3.3], "zebra_time": [0.5]}
-
     dev.write_dir.put(str(write_dir))
     dev.file_name.put(f"test_{uuid.uuid4().hex[:8]}.h5")
     dev.set("stage").wait(timeout=10)
@@ -71,7 +67,9 @@ def test_zebra_default_map_scaler_dev_type(zebra_caproto_ioc, zebra_ophyd_device
 
 
 @pytest.mark.cloud_friendly
-def test_zebra_custom_dataset_map(zebra_caproto_ioc_custom_map, zebra_ophyd_device_custom_map):
+def test_zebra_custom_dataset_map(
+    zebra_caproto_ioc_custom_map, zebra_ophyd_device_custom_map
+):
     """--dataset-map override produces HDF5 datasets with the custom names."""
     _proc, custom_map = zebra_caproto_ioc_custom_map
     expected_hdf5_keys = set(custom_map.values())
@@ -98,4 +96,6 @@ def test_zebra_custom_dataset_map(zebra_caproto_ioc_custom_map, zebra_ophyd_devi
         pv_attr_names = set(custom_map.keys())
         renamed = pv_attr_names - expected_hdf5_keys
         for name in renamed:
-            assert name not in f, f"PV attr name '{name}' should not appear as a dataset key"
+            assert name not in f, (
+                f"PV attr name '{name}' should not appear as a dataset key"
+            )
