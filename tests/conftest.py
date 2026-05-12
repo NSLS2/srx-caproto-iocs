@@ -32,9 +32,8 @@ def get_epics_env():
         # Server-side: where the IOC sends beacons
         "EPICS_CAS_BEACON_ADDR_LIST": addr_list,
         "EPICS_CAS_AUTO_BEACON_ADDR_LIST": "no",
-        # Client-side: where ophyd/pyepics searches for IOCs
+        # Client-side: include the computed broadcast on top of auto-discovered addresses
         "EPICS_CA_ADDR_LIST": addr_list,
-        "EPICS_CA_AUTO_ADDR_LIST": "no",
     }
 
 
