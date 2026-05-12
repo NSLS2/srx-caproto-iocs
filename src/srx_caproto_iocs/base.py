@@ -272,9 +272,7 @@ class OphydDeviceWithCaprotoIOC(Device):
         def cb(value, old_value, **kwargs):
             # pylint: disable=unused-argument
             # print(f"{now()}: {old_value} -> {value}")
-            if value == expected_new_value and old_value == expected_old_value:
-                return True
-            return False
+            return value == expected_new_value and old_value == expected_old_value
 
         st = SubscriptionStatus(obj, callback=cb, run=False)
         # print(f"{now()}: {cmd = }")
