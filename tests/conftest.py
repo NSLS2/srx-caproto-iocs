@@ -27,20 +27,14 @@ def get_epics_env():
 
     print(f"{broadcast = }")
 
-    # from pprint import pformat
-    # import netifaces
-    # interfaces = netifaces.interfaces()
-    # print(f"{interfaces = }")
-    # for interface in interfaces:
-    #     addrs = netifaces.ifaddresses(interface)
-    #     try:
-    #         print(f"{interface = }: {pformat(addrs[netifaces.AF_INET])}")
-    #     except Exception as e:
-    #         print(f"{interface = }: exception:\n  {e}")
-
+    addr_list = os.getenv("EPICS_CA_ADDR_LIST", broadcast)
     return {
-        "EPICS_CAS_BEACON_ADDR_LIST": os.getenv("EPICS_CA_ADDR_LIST", broadcast),
+        # Server-side: where the IOC sends beacons
+        "EPICS_CAS_BEACON_ADDR_LIST": addr_list,
         "EPICS_CAS_AUTO_BEACON_ADDR_LIST": "no",
+        # Client-side: where ophyd/pyepics searches for IOCs
+        "EPICS_CA_ADDR_LIST": addr_list,
+        "EPICS_CA_AUTO_ADDR_LIST": "no",
     }
 
 
@@ -177,13 +171,15 @@ def zebra_caproto_ioc_custom_map(wait=5):
 @pytest.fixture
 def zebra_ophyd_device():
     dev = ZebraWithCaprotoIOC(ZEBRA_OPHYD_PV_PREFIX, name="zebra_with_caproto_ioc")
+    dev.wait_for_connection(timeout=30)
     yield dev
-    dev.ioc_stage.put("unstaged")
+    dev.ioc_stage.put("unstaged", timeout=10)
 
 
 @pytest.fixture
 def zebra_ophyd_device_custom_map():
     prefix = "ZEBRA_CUSTOM:{Dev:Save1}:"
     dev = ZebraWithCaprotoIOC(prefix, name="zebra_custom_map")
+    dev.wait_for_connection(timeout=30)
     yield dev
-    dev.ioc_stage.put("unstaged")
+    dev.ioc_stage.put("unstaged", timeout=10)

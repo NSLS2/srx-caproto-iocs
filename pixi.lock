@@ -6616,8 +6616,8 @@ packages:
   requires_python: '>=3.9'
 - pypi: ./
   name: srx-caproto-iocs
-  version: 0.1.dev81+g71cca67b9.d20260512
-  sha256: 55d228161a6c6bddff4946dc97be2b0858c4baa7662aa794312a7ff068617f81
+  version: 0.1.dev86+gc3fa415d0.d20260512
+  sha256: 3ffe1859f6ecc809a989b6ae56ca3219daff0c83c5dcbf12127fe98f2f0b41bb
   requires_dist:
   - caproto
   - h5py
@@ -6639,7 +6639,7 @@ packages:
   - sphinx>=7.0 ; extra == 'docs'
   - pytest-cov>=3 ; extra == 'test'
   - pytest>=6 ; extra == 'test'
-  requires_python: '>=3.8'
+  requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/noarch/stack_data-0.6.3-pyhd8ed1ab_1.conda
   sha256: 570da295d421661af487f1595045760526964f41471021056e993e73089e9c41
   md5: b1b505328da7a6b246787df4b5a49fbc

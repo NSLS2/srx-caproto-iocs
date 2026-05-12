@@ -276,7 +276,7 @@ class OphydDeviceWithCaprotoIOC(Device):
 
         st = SubscriptionStatus(obj, callback=cb, run=False)
         # print(f"{now()}: {cmd = }")
-        obj.put(cmd)
+        obj.put(cmd, timeout=10)
         return st
 
 

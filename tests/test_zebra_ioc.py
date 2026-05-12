@@ -17,8 +17,8 @@ def test_zebra_default_map_zebra_dev_type(zebra_caproto_ioc, zebra_ophyd_device)
 
     dev = zebra_ophyd_device
 
-    dev.write_dir.put(str(write_dir))
-    dev.file_name.put(f"test_{uuid.uuid4().hex[:8]}.h5")
+    dev.write_dir.put(str(write_dir), timeout=10)
+    dev.file_name.put(f"test_{uuid.uuid4().hex[:8]}.h5", timeout=10)
     dev.set("stage").wait(timeout=10)
 
     for _ in range(num_frames):
@@ -26,7 +26,7 @@ def test_zebra_default_map_zebra_dev_type(zebra_caproto_ioc, zebra_ophyd_device)
 
     dev.set("unstage").wait(timeout=10)
 
-    full_file_path = dev.full_file_path.get()
+    full_file_path = dev.full_file_path.get(timeout=10)
     assert full_file_path, "full_file_path PV is empty"
     assert Path(full_file_path).is_file(), f"HDF5 file not found: {full_file_path}"
 
@@ -45,15 +45,15 @@ def test_zebra_default_map_scaler_dev_type(zebra_caproto_ioc, zebra_ophyd_device
     write_dir.mkdir(parents=True, exist_ok=True)
 
     dev = zebra_ophyd_device
-    dev.dev_type.put("scaler")
+    dev.dev_type.put("scaler", timeout=10)
 
-    dev.write_dir.put(str(write_dir))
-    dev.file_name.put(f"test_{uuid.uuid4().hex[:8]}.h5")
+    dev.write_dir.put(str(write_dir), timeout=10)
+    dev.file_name.put(f"test_{uuid.uuid4().hex[:8]}.h5", timeout=10)
     dev.set("stage").wait(timeout=10)
     dev.set("acquire").wait(timeout=10)
     dev.set("unstage").wait(timeout=10)
 
-    full_file_path = dev.full_file_path.get()
+    full_file_path = dev.full_file_path.get(timeout=10)
     assert Path(full_file_path).is_file(), f"HDF5 file not found: {full_file_path}"
 
     with h5py.File(full_file_path, "r") as f:
@@ -63,7 +63,7 @@ def test_zebra_default_map_scaler_dev_type(zebra_caproto_ioc, zebra_ophyd_device
         )
 
     # Reset dev_type back to default.
-    dev.dev_type.put("zebra")
+    dev.dev_type.put("zebra", timeout=10)
 
 
 @pytest.mark.cloud_friendly
@@ -79,13 +79,13 @@ def test_zebra_custom_dataset_map(
     write_dir.mkdir(parents=True, exist_ok=True)
 
     dev = zebra_ophyd_device_custom_map
-    dev.write_dir.put(str(write_dir))
-    dev.file_name.put(f"test_{uuid.uuid4().hex[:8]}.h5")
+    dev.write_dir.put(str(write_dir), timeout=10)
+    dev.file_name.put(f"test_{uuid.uuid4().hex[:8]}.h5", timeout=10)
     dev.set("stage").wait(timeout=10)
     dev.set("acquire").wait(timeout=10)
     dev.set("unstage").wait(timeout=10)
 
-    full_file_path = dev.full_file_path.get()
+    full_file_path = dev.full_file_path.get(timeout=10)
     assert Path(full_file_path).is_file(), f"HDF5 file not found: {full_file_path}"
 
     with h5py.File(full_file_path, "r") as f:
