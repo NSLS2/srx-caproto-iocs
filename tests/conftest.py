@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import socket
 import string
@@ -11,9 +12,13 @@ import pytest
 
 from srx_caproto_iocs.base import OphydDeviceWithCaprotoIOC
 from srx_caproto_iocs.example.ophyd import OphydChannelTypes
+from srx_caproto_iocs.zebra.ophyd import ZebraWithCaprotoIOC
 
 CAPROTO_PV_PREFIX = "BASE:{{Dev:Save1}}:"
 OPHYD_PV_PREFIX = CAPROTO_PV_PREFIX.replace("{{", "{").replace("}}", "}")
+
+ZEBRA_CAPROTO_PV_PREFIX = "ZEBRA:{{Dev:Save1}}:"
+ZEBRA_OPHYD_PV_PREFIX = ZEBRA_CAPROTO_PV_PREFIX.replace("{{", "{").replace("}}", "}")
 
 
 def get_epics_env():
@@ -39,16 +44,16 @@ def get_epics_env():
     }
 
 
-def start_ioc_subprocess(ioc_name="srx_caproto_iocs.base", pv_prefix=CAPROTO_PV_PREFIX):
+def start_ioc_subprocess(ioc_name="srx_caproto_iocs.base", pv_prefix=CAPROTO_PV_PREFIX, extra_args=()):
     env = get_epics_env()
 
-    command = f"{sys.executable} -m {ioc_name} --prefix={pv_prefix} --list-pvs"
+    command = [sys.executable, "-m", ioc_name, f"--prefix={pv_prefix}", "--list-pvs", *extra_args]
     print(
-        f"\nStarting caproto IOC in via a fixture using the following command:\n\n  {command}\n"
+        f"\nStarting caproto IOC in via a fixture using the following command:\n\n  {' '.join(command)}\n"
     )
     os.environ.update(env)
     return subprocess.Popen(
-        command.split(),
+        command,
         start_new_session=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -113,3 +118,63 @@ def ophyd_channel_types():
     for cpt in sorted(dev.component_names):
         getattr(dev, cpt).put(next(letters))
     return dev
+
+
+@pytest.fixture(scope="session")
+def zebra_caproto_ioc(wait=5):
+    p = start_ioc_subprocess(
+        ioc_name="srx_caproto_iocs.zebra.caproto_ioc",
+        pv_prefix=ZEBRA_CAPROTO_PV_PREFIX,
+    )
+
+    print(f"Wait for {wait} seconds...")
+    ttime.sleep(wait)
+
+    yield p
+
+    p.terminate()
+
+    std_out, std_err = p.communicate()
+    std_out = std_out.decode()
+    sep = "=" * 80
+    print(f"STDOUT:\n{sep}\n{std_out}")
+    print(f"STDERR:\n{sep}\n{std_err}")
+
+
+@pytest.fixture(scope="session")
+def zebra_caproto_ioc_custom_map(wait=5):
+    """ZebraSaveIOC with a custom --dataset-map overriding the SRX defaults."""
+    custom_map = {"enc1": "x_pos", "enc2": "y_pos", "enc3": "z_pos", "zebra_time": "t"}
+    p = start_ioc_subprocess(
+        ioc_name="srx_caproto_iocs.zebra.caproto_ioc",
+        pv_prefix="ZEBRA_CUSTOM:{{Dev:Save1}}:",
+        extra_args=(f"--dataset-map={json.dumps(custom_map)}",),
+    )
+
+    print(f"Wait for {wait} seconds...")
+    ttime.sleep(wait)
+
+    yield p, custom_map
+
+    p.terminate()
+
+    std_out, std_err = p.communicate()
+    std_out = std_out.decode()
+    sep = "=" * 80
+    print(f"STDOUT:\n{sep}\n{std_out}")
+    print(f"STDERR:\n{sep}\n{std_err}")
+
+
+@pytest.fixture()
+def zebra_ophyd_device():
+    dev = ZebraWithCaprotoIOC(ZEBRA_OPHYD_PV_PREFIX, name="zebra_with_caproto_ioc")
+    yield dev
+    dev.ioc_stage.put("unstaged")
+
+
+@pytest.fixture()
+def zebra_ophyd_device_custom_map():
+    prefix = "ZEBRA_CUSTOM:{Dev:Save1}:"
+    dev = ZebraWithCaprotoIOC(prefix, name="zebra_custom_map")
+    yield dev
+    dev.ioc_stage.put("unstaged")
