@@ -259,7 +259,7 @@ if __name__ == "__main__":
     )
 
     ioc_options, run_options = check_args(parser, split_args)
-    dataset_map = parser.parse_args().dataset_map
+    dataset_map_arg = parser.parse_args().dataset_map
 
-    ioc = ZebraSaveIOC(dataset_map=dataset_map, **ioc_options)
+    ioc = ZebraSaveIOC(dataset_map=dataset_map_arg, **ioc_options)
     run(ioc.pvdb, **run_options)
