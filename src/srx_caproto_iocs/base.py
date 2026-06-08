@@ -214,7 +214,9 @@ class CaprotoSaveIOC(PVGroup):
             data = received["data"]
             frame_number = received["frame_number"]
             try:
-                save_hdf5_nd(fname=filename, data=data, mode="a", group_path="data/data")
+                save_hdf5_nd(
+                    fname=filename, data=data, mode="a", group_path="data/data"
+                )
                 print(
                     f"{now()}: saved {frame_number=} {data.shape} data into:\n  {filename}"
                 )
