@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs", "setuptools>=61,<67"]
+requires = ["hatchling", "hatch-vcs", "setuptools>=61"]
 build-backend = "hatchling.build"
 
 
@@ -78,7 +78,7 @@ scripts.test = "pytest {args}"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config", "--timeout=120"]
+addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config", "--timeout=20"]
 xfail_strict = true
 filterwarnings = [
   "error",
