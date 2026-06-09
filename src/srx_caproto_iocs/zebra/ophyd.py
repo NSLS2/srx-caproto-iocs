@@ -12,14 +12,8 @@ class ZebraWithCaprotoIOC(OphydDeviceWithCaprotoIOC):
     # Device-type selector (zebra / scaler)
     dev_type = Cpt(EpicsSignal, "dev_type", string=True)
 
-    # Zebra position-capture channels
-    enc1 = Cpt(EpicsSignalRO, "enc1", auto_monitor=False)
-    enc2 = Cpt(EpicsSignalRO, "enc2", auto_monitor=False)
-    enc3 = Cpt(EpicsSignalRO, "enc3", auto_monitor=False)
-    zebra_time = Cpt(EpicsSignalRO, "zebra_time", auto_monitor=False)
-
-    # Scaler channels
-    i0 = Cpt(EpicsSignalRO, "i0", auto_monitor=False)
-    im = Cpt(EpicsSignalRO, "im", auto_monitor=False)
-    it = Cpt(EpicsSignalRO, "it", auto_monitor=False)
-    sis_time = Cpt(EpicsSignalRO, "sis_time", auto_monitor=False)
+    # Generic data channels (ch1–ch4)
+    ch1 = Cpt(EpicsSignalRO, "ch1", auto_monitor=False)
+    ch2 = Cpt(EpicsSignalRO, "ch2", auto_monitor=False)
+    ch3 = Cpt(EpicsSignalRO, "ch3", auto_monitor=False)
+    ch4 = Cpt(EpicsSignalRO, "ch4", auto_monitor=False)

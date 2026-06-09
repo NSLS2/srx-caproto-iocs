@@ -146,7 +146,7 @@ def zebra_caproto_ioc(wait=5):
 @pytest.fixture(scope="session")
 def zebra_caproto_ioc_custom_map(wait=5):
     """ZebraSaveIOC with a custom --dataset-map overriding the SRX defaults."""
-    custom_map = {"enc1": "x_pos", "enc2": "y_pos", "enc3": "z_pos", "zebra_time": "t"}
+    custom_map = {"ch1": "x_pos", "ch2": "y_pos", "ch3": "z_pos", "ch4": "t"}
     p = start_ioc_subprocess(
         ioc_name="srx_caproto_iocs.zebra.caproto_ioc",
         pv_prefix="ZEBRA_CUSTOM:{{Dev:Save1}}:",

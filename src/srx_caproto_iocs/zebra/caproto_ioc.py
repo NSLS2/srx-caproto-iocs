@@ -99,59 +99,31 @@ class ZebraSaveIOC(CaprotoSaveIOC):
         doc="Pick device type",
     )
 
-    enc1 = pvproperty(
+    ch1 = pvproperty(
         value=0,
         dtype=ChannelType.DOUBLE,
-        doc="enc1 data",
+        doc="Generic channel 1 (zebra default: enc1, scaler default: i0)",
         max_length=DEFAULT_MAX_LENGTH,
     )
 
-    enc2 = pvproperty(
+    ch2 = pvproperty(
         value=0,
         dtype=ChannelType.DOUBLE,
-        doc="enc2 data",
+        doc="Generic channel 2 (zebra default: enc2, scaler default: im)",
         max_length=DEFAULT_MAX_LENGTH,
     )
 
-    enc3 = pvproperty(
+    ch3 = pvproperty(
         value=0,
         dtype=ChannelType.DOUBLE,
-        doc="enc3 data",
+        doc="Generic channel 3 (zebra default: enc3, scaler default: it)",
         max_length=DEFAULT_MAX_LENGTH,
     )
 
-    zebra_time = pvproperty(
+    ch4 = pvproperty(
         value=0,
         dtype=ChannelType.DOUBLE,
-        doc="zebra time",
-        max_length=DEFAULT_MAX_LENGTH,
-    )
-
-    i0 = pvproperty(
-        value=0,
-        dtype=ChannelType.DOUBLE,
-        doc="i0 data",
-        max_length=DEFAULT_MAX_LENGTH,
-    )
-
-    im = pvproperty(
-        value=0,
-        dtype=ChannelType.DOUBLE,
-        doc="im data",
-        max_length=DEFAULT_MAX_LENGTH,
-    )
-
-    it = pvproperty(
-        value=0,
-        dtype=ChannelType.DOUBLE,
-        doc="it data",
-        max_length=DEFAULT_MAX_LENGTH,
-    )
-
-    sis_time = pvproperty(
-        value=0,
-        dtype=ChannelType.DOUBLE,
-        doc="sis time",
+        doc="Generic channel 4 (zebra default: zebra_time, scaler default: sis_time)",
         max_length=DEFAULT_MAX_LENGTH,
     )
 
@@ -164,20 +136,20 @@ class ZebraSaveIOC(CaprotoSaveIOC):
     #     super().__init__(*args, **kwargs)
     #     self._external_pvs = external_pvs
 
-    #: Default dataset mappings keyed by dev_type. Keys are PV attribute names;
-    #: values are the corresponding HDF5 dataset names written to file.
+    #: Default dataset mappings keyed by dev_type. Keys are generic PV attribute
+    #: names (ch1–ch4); values are the HDF5 dataset names written to file.
     _DEFAULT_DATASET_MAPS: dict[str, dict[str, str]] = {
         DevTypes.ZEBRA.value: {
-            "enc1": "enc1",
-            "enc2": "enc2",
-            "enc3": "enc3",
-            "zebra_time": "zebra_time",
+            "ch1": "enc1",
+            "ch2": "enc2",
+            "ch3": "enc3",
+            "ch4": "zebra_time",
         },
         DevTypes.SCALER.value: {
-            "i0": "i0",
-            "im": "im",
-            "it": "it",
-            "sis_time": "sis_time",
+            "ch1": "i0",
+            "ch2": "im",
+            "ch3": "it",
+            "ch4": "sis_time",
         },
     }
 
@@ -249,8 +221,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset-map",
         help=(
-            "JSON mapping of PV attribute names to HDF5 dataset names, "
-            'e.g. \'{"enc1": "x_pos", "enc2": "y_pos"}\'. '
+            "JSON mapping of generic channel names (ch1–ch4) to HDF5 dataset names. "
+            'Full example: \'{"ch1": "x_pos", "ch2": "y_pos", "ch3": "z_pos", "ch4": "t"}\'. '
+            'Partial example (FXI-style, 2 channels): \'{"ch1": "enc1_pi_r", "ch2": "zebra_time"}\'. '
             "When omitted, the mapping is chosen from the built-in SRX defaults "
             "based on the dev_type PV (zebra or scaler)."
         ),
