@@ -215,3 +215,65 @@ def zebra_ophyd_device_fxi_map():
     dev.wait_for_connection(timeout=30)
     yield dev
     dev.ioc_stage.put("unstaged", timeout=10)
+
+
+@pytest.fixture(scope="session")
+def zebra_caproto_ioc_conc_srx_zebra(wait=5):
+    """ZebraSaveIOC for 3-IOC concurrent test — SRX Zebra (default map)."""
+    p = start_ioc_subprocess(
+        ioc_name="srx_caproto_iocs.zebra.caproto_ioc",
+        pv_prefix="ZEBRA_CONC_SRXZ:{{Dev:Save1}}:",
+    )
+
+    print(f"Wait for {wait} seconds...")
+    ttime.sleep(wait)
+
+    yield p
+
+    p.terminate()
+
+    std_out, std_err = p.communicate()
+    std_out = std_out.decode()
+    sep = "=" * 80
+    print(f"STDOUT:\n{sep}\n{std_out}")
+    print(f"STDERR:\n{sep}\n{std_err}")
+
+
+@pytest.fixture(scope="session")
+def zebra_caproto_ioc_conc_srx_sis(wait=5):
+    """ZebraSaveIOC for 3-IOC concurrent test — SRX SIS/scaler (explicit scaler map)."""
+    sis_map = {"ch1": "i0", "ch2": "im", "ch3": "it", "ch4": "sis_time"}
+    p = start_ioc_subprocess(
+        ioc_name="srx_caproto_iocs.zebra.caproto_ioc",
+        pv_prefix="ZEBRA_CONC_SRXS:{{Dev:Save1}}:",
+        extra_args=(f"--dataset-map={json.dumps(sis_map)}",),
+    )
+
+    print(f"Wait for {wait} seconds...")
+    ttime.sleep(wait)
+
+    yield p, sis_map
+
+    p.terminate()
+
+    std_out, std_err = p.communicate()
+    std_out = std_out.decode()
+    sep = "=" * 80
+    print(f"STDOUT:\n{sep}\n{std_out}")
+    print(f"STDERR:\n{sep}\n{std_err}")
+
+
+@pytest.fixture
+def zebra_ophyd_device_conc_srx_zebra():
+    dev = ZebraWithCaprotoIOC("ZEBRA_CONC_SRXZ:{Dev:Save1}:", name="zebra_conc_srx_zebra")
+    dev.wait_for_connection(timeout=30)
+    yield dev
+    dev.ioc_stage.put("unstaged", timeout=10)
+
+
+@pytest.fixture
+def zebra_ophyd_device_conc_srx_sis():
+    dev = ZebraWithCaprotoIOC("ZEBRA_CONC_SRXS:{Dev:Save1}:", name="zebra_conc_srx_sis")
+    dev.wait_for_connection(timeout=30)
+    yield dev
+    dev.ioc_stage.put("unstaged", timeout=10)
