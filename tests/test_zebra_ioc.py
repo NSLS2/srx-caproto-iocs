@@ -219,3 +219,41 @@ def test_three_concurrent_iocs(
         assert len(f.keys()) == 2, (
             f"FXI: expected exactly 2 datasets, got {len(f.keys())}: {set(f.keys())}"
         )
+
+
+@pytest.mark.cloud_friendly
+def test_zebra_extra_channels(zebra_caproto_ioc_6ch, zebra_ophyd_device_6ch):
+    """IOC started with --num-channels 6 writes exactly 6 HDF5 datasets.
+
+    Verifies that ch5 and ch6 (beyond the 4 SRX defaults) appear in the
+    output file under the names supplied via --dataset-map.
+    """
+    _proc, ch_map = zebra_caproto_ioc_6ch
+    expected_hdf5_keys = set(ch_map.values())  # {"enc1","enc2","enc3","zebra_time","extra_ch5","extra_ch6"}
+
+    tmpdirname = f"/tmp/srx-caproto-iocs/{str(uuid.uuid4())[:8]}"
+    write_dir = Path(tmpdirname)
+    write_dir.mkdir(parents=True, exist_ok=True)
+
+    dev = zebra_ophyd_device_6ch
+    dev.write_dir.put(str(write_dir), timeout=10)
+    dev.file_name.put(f"test_{uuid.uuid4().hex[:8]}.h5", timeout=10)
+    dev.set("stage").wait(timeout=10)
+    dev.set("acquire").wait(timeout=10)
+    dev.set("unstage").wait(timeout=10)
+
+    full_file_path = dev.full_file_path.get(timeout=10)
+    assert full_file_path, "full_file_path PV is empty"
+    assert Path(full_file_path).is_file(), f"HDF5 file not found: {full_file_path}"
+
+    with h5py.File(full_file_path, "r") as f:
+        actual_keys = set(f.keys())
+        assert actual_keys == expected_hdf5_keys, (
+            f"Expected exactly {expected_hdf5_keys}, got {actual_keys}"
+        )
+        assert len(actual_keys) == 6, (
+            f"Expected exactly 6 datasets, got {len(actual_keys)}: {actual_keys}"
+        )
+        # ch5 and ch6 extra entries must be present
+        assert "extra_ch5" in actual_keys, "ch5 dataset 'extra_ch5' missing from HDF5"
+        assert "extra_ch6" in actual_keys, "ch6 dataset 'extra_ch6' missing from HDF5"

@@ -12,7 +12,7 @@ import pytest
 
 from srx_caproto_iocs.base import OphydDeviceWithCaprotoIOC
 from srx_caproto_iocs.example.ophyd import OphydChannelTypes
-from srx_caproto_iocs.zebra.ophyd import ZebraWithCaprotoIOC
+from srx_caproto_iocs.zebra.ophyd import ZebraWithCaprotoIOC, make_zebra_ophyd_device
 
 CAPROTO_PV_PREFIX = "BASE:{{Dev:Save1}}:"
 OPHYD_PV_PREFIX = CAPROTO_PV_PREFIX.replace("{{", "{").replace("}}", "}")
@@ -274,6 +274,55 @@ def zebra_ophyd_device_conc_srx_zebra():
 @pytest.fixture
 def zebra_ophyd_device_conc_srx_sis():
     dev = ZebraWithCaprotoIOC("ZEBRA_CONC_SRXS:{Dev:Save1}:", name="zebra_conc_srx_sis")
+    dev.wait_for_connection(timeout=30)
+    yield dev
+    dev.ioc_stage.put("unstaged", timeout=10)
+
+
+# ---------------------------------------------------------------------------
+# 6-channel (configurable) fixtures
+# ---------------------------------------------------------------------------
+
+_6CH_MAP = {
+    "ch1": "enc1",
+    "ch2": "enc2",
+    "ch3": "enc3",
+    "ch4": "zebra_time",
+    "ch5": "extra_ch5",
+    "ch6": "extra_ch6",
+}
+_ZebraWith6Ch = make_zebra_ophyd_device(6)
+
+
+@pytest.fixture(scope="session")
+def zebra_caproto_ioc_6ch(wait=5):
+    """ZebraSaveIOC started with --num-channels 6 and a 6-entry dataset-map."""
+    p = start_ioc_subprocess(
+        ioc_name="srx_caproto_iocs.zebra.caproto_ioc",
+        pv_prefix="ZEBRA_6CH:{{Dev:Save1}}:",
+        extra_args=(
+            "--num-channels=6",
+            f"--dataset-map={json.dumps(_6CH_MAP)}",
+        ),
+    )
+
+    print(f"Wait for {wait} seconds...")
+    ttime.sleep(wait)
+
+    yield p, _6CH_MAP
+
+    p.terminate()
+
+    std_out, std_err = p.communicate()
+    std_out = std_out.decode()
+    sep = "=" * 80
+    print(f"STDOUT:\n{sep}\n{std_out}")
+    print(f"STDERR:\n{sep}\n{std_err}")
+
+
+@pytest.fixture
+def zebra_ophyd_device_6ch():
+    dev = _ZebraWith6Ch("ZEBRA_6CH:{Dev:Save1}:", name="zebra_6ch")
     dev.wait_for_connection(timeout=30)
     yield dev
     dev.ioc_stage.put("unstaged", timeout=10)

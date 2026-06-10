@@ -1,6 +1,7 @@
 # pylint: disable=duplicate-code
 from __future__ import annotations
 
+import argparse
 import json
 import textwrap
 from enum import Enum
@@ -81,6 +82,12 @@ from ..utils import now, save_hdf5_zebra
 
 DEFAULT_MAX_LENGTH = 100_000
 
+#: SRX-specific HDF5 dataset names for the first 4 channels, keyed by dev_type.
+_SRX_CHANNEL_NAMES: dict[str, list[str]] = {
+    "zebra": ["enc1", "enc2", "enc3", "zebra_time"],
+    "scaler": ["i0", "im", "it", "sis_time"],
+}
+
 
 class DevTypes(Enum):
     """Enum class for devices."""
@@ -89,150 +96,180 @@ class DevTypes(Enum):
     SCALER = "scaler"
 
 
-class ZebraSaveIOC(CaprotoSaveIOC):
-    """Zebra caproto save IOC."""
+def _build_default_maps(num_channels: int) -> dict[str, dict[str, str]]:
+    """Build default dataset maps for *num_channels* generic channels.
 
-    dev_type = pvproperty(
-        value=DevTypes.ZEBRA.value,
-        enum_strings=[x.value for x in DevTypes],
-        dtype=ChannelType.ENUM,
-        doc="Pick device type",
-    )
+    The first 4 channels use SRX-specific HDF5 dataset names; channels
+    beyond 4 fall back to an identity mapping (``chN -> "chN"``).
+    """
+    maps: dict[str, dict[str, str]] = {}
+    for dev_type, srx_names in _SRX_CHANNEL_NAMES.items():
+        mapping: dict[str, str] = {}
+        for i in range(1, num_channels + 1):
+            pv_name = f"ch{i}"
+            if i <= len(srx_names):
+                mapping[pv_name] = srx_names[i - 1]
+            else:
+                mapping[pv_name] = pv_name  # identity for extra channels
+        maps[dev_type] = mapping
+    return maps
 
-    ch1 = pvproperty(
-        value=0,
-        dtype=ChannelType.DOUBLE,
-        doc="Generic channel 1 (zebra default: enc1, scaler default: i0)",
-        max_length=DEFAULT_MAX_LENGTH,
-    )
 
-    ch2 = pvproperty(
-        value=0,
-        dtype=ChannelType.DOUBLE,
-        doc="Generic channel 2 (zebra default: enc2, scaler default: im)",
-        max_length=DEFAULT_MAX_LENGTH,
-    )
+def _zebra_init(
+    self,
+    *args,
+    dataset_map: dict[str, str] | None = None,
+    **kwargs,
+) -> None:
+    """Init method.
 
-    ch3 = pvproperty(
-        value=0,
-        dtype=ChannelType.DOUBLE,
-        doc="Generic channel 3 (zebra default: enc3, scaler default: it)",
-        max_length=DEFAULT_MAX_LENGTH,
-    )
+    Parameters
+    ----------
+    dataset_map : dict, optional
+        Mapping of PV attribute names to HDF5 dataset names, e.g.
+        ``{"ch1": "x_pos", "ch2": "y_pos"}``.  When *None* (default)
+        the mapping is chosen automatically based on the ``dev_type`` PV.
+    """
+    self._dataset_map = dataset_map
+    CaprotoSaveIOC.__init__(self, *args, **kwargs)
 
-    ch4 = pvproperty(
-        value=0,
-        dtype=ChannelType.DOUBLE,
-        doc="Generic channel 4 (zebra default: zebra_time, scaler default: sis_time)",
-        max_length=DEFAULT_MAX_LENGTH,
-    )
 
-    # def __init__(self, *args, external_pvs=None, **kwargs):
-    #     """Init method.
+async def _zebra_get_current_dataset(self, *args, **kwargs):  # pylint: disable=unused-argument
+    if self._dataset_map is not None:
+        mapping = self._dataset_map
+    elif self.dev_type.value == DevTypes.ZEBRA.value:
+        mapping = self._DEFAULT_DATASET_MAPS[DevTypes.ZEBRA.value]
+    else:
+        mapping = self._DEFAULT_DATASET_MAPS[DevTypes.SCALER.value]
 
-    #     external_pvs : dict
-    #         a dictionary of external PVs with keys as human-readable names.
-    #     """
-    #     super().__init__(*args, **kwargs)
-    #     self._external_pvs = external_pvs
-
-    #: Default dataset mappings keyed by dev_type. Keys are generic PV attribute
-    #: names (ch1–ch4); values are the HDF5 dataset names written to file.
-    _DEFAULT_DATASET_MAPS: dict[str, dict[str, str]] = {
-        DevTypes.ZEBRA.value: {
-            "ch1": "enc1",
-            "ch2": "enc2",
-            "ch3": "enc3",
-            "ch4": "zebra_time",
-        },
-        DevTypes.SCALER.value: {
-            "ch1": "i0",
-            "ch2": "im",
-            "ch3": "it",
-            "ch4": "sis_time",
-        },
+    dataset = {
+        hdf5_name: getattr(self, pv_attr).value
+        for pv_attr, hdf5_name in mapping.items()
     }
 
-    def __init__(
-        self,
-        *args,
-        dataset_map: dict[str, str] | None = None,
-        **kwargs,
-    ):
-        """Init method.
+    print(f"{now()}:\n{dataset}")
 
-        Parameters
-        ----------
-        dataset_map : dict, optional
-            Mapping of PV attribute names to HDF5 dataset names, e.g.
-            ``{"enc1": "x_pos", "enc2": "y_pos"}``.  When *None* (default)
-            the mapping is chosen automatically based on the ``dev_type`` PV.
-        """
-        self._dataset_map = dataset_map
-        super().__init__(*args, **kwargs)
+    return dataset
 
-    async def _get_current_dataset(self, *args, **kwargs):  # pylint: disable=unused-argument
-        if self._dataset_map is not None:
-            mapping = self._dataset_map
-        elif self.dev_type.value == DevTypes.ZEBRA.value:
-            mapping = self._DEFAULT_DATASET_MAPS[DevTypes.ZEBRA.value]
-        else:
-            mapping = self._DEFAULT_DATASET_MAPS[DevTypes.SCALER.value]
 
-        dataset = {
-            hdf5_name: getattr(self, pv_attr).value
-            for pv_attr, hdf5_name in mapping.items()
-        }
+def _zebra_saver(request_queue, response_queue) -> None:
+    """The saver callback for threading-based queueing."""
+    while True:
+        received = request_queue.get()
+        filename = received["filename"]
+        data = received["data"]
+        # 'frame_number' is not used for this exporter.
+        try:
+            save_hdf5_zebra(fname=filename, data=data, mode="a")
+            print(f"{now()}: saved data into:\n  {filename}")
 
-        print(f"{now()}:\n{dataset}")
+            success = True
+            error_message = ""
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            success = False
+            error_message = exc
+            print(
+                f"Cannot save file {filename!r} due to the following exception:\n{exc}"
+            )
 
-        return dataset
+        response = {"success": success, "error_message": error_message}
+        response_queue.put(response)
 
-    @staticmethod
-    def saver(request_queue, response_queue):
-        """The saver callback for threading-based queueing."""
-        while True:
-            received = request_queue.get()
-            filename = received["filename"]
-            data = received["data"]
-            # 'frame_number' is not used for this exporter.
-            try:
-                save_hdf5_zebra(fname=filename, data=data, mode="a")
-                print(f"{now()}: saved data into:\n  {filename}")
 
-                success = True
-                error_message = ""
-            except Exception as exc:  # pylint: disable=broad-exception-caught
-                success = False
-                error_message = exc
-                print(
-                    f"Cannot save file {filename!r} due to the following exception:\n{exc}"
-                )
+def make_zebra_save_ioc(num_channels: int = 4) -> type:
+    """Return a :class:`ZebraSaveIOC` subclass with *num_channels* data channels.
 
-            response = {"success": success, "error_message": error_message}
-            response_queue.put(response)
+    Each channel is exposed as a caproto PV named ``ch1``, ``ch2``, ...,
+    ``ch{num_channels}``.  The returned class can be used directly::
+
+        MyIOC = make_zebra_save_ioc(6)
+        ioc = MyIOC(**ioc_options)
+
+    Channels beyond 4 use identity mapping by default (``chN -> "chN"``);
+    supply ``--dataset-map`` for custom HDF5 names.
+
+    Parameters
+    ----------
+    num_channels:
+        Number of generic data channels to create (default: 4).
+    """
+    if num_channels < 1:
+        msg = f"num_channels must be >= 1, got {num_channels}"
+        raise ValueError(msg)
+
+    channel_attrs: dict[str, object] = {
+        f"ch{i}": pvproperty(
+            value=0,
+            dtype=ChannelType.DOUBLE,
+            doc=f"Generic channel {i}",
+            max_length=DEFAULT_MAX_LENGTH,
+        )
+        for i in range(1, num_channels + 1)
+    }
+
+    default_maps = _build_default_maps(num_channels)
+
+    shared_attrs: dict[str, object] = {
+        "__doc__": "Zebra caproto save IOC.",
+        "dev_type": pvproperty(
+            value=DevTypes.ZEBRA.value,
+            enum_strings=[x.value for x in DevTypes],
+            dtype=ChannelType.ENUM,
+            doc="Pick device type",
+        ),
+        "_DEFAULT_DATASET_MAPS": default_maps,
+        "__init__": _zebra_init,
+        "_get_current_dataset": _zebra_get_current_dataset,
+        "saver": staticmethod(_zebra_saver),
+    }
+
+    return type("ZebraSaveIOC", (CaprotoSaveIOC,), {**channel_attrs, **shared_attrs})
+
+
+#: Default 4-channel class — backward-compatible public name.
+ZebraSaveIOC: type = make_zebra_save_ioc(4)
 
 
 if __name__ == "__main__":
+    # Parse --num-channels first so we can build the right IOC class before
+    # template_arg_parser consumes the argument list.
+    pre_parser = argparse.ArgumentParser(add_help=False)
+    pre_parser.add_argument(
+        "--num-channels",
+        type=int,
+        default=4,
+        help="Number of generic data channels ch1..chN to create (default: 4).",
+    )
+    pre_args, _ = pre_parser.parse_known_args()
+    num_ch = pre_args.num_channels
+
+    DynamicIOC = make_zebra_save_ioc(num_ch)
+
     parser, split_args = template_arg_parser(
-        default_prefix="", desc=textwrap.dedent(ZebraSaveIOC.__doc__)
+        default_prefix="", desc=textwrap.dedent(DynamicIOC.__doc__ or "")
     )
 
     parser.add_argument(
+        "--num-channels",
+        type=int,
+        default=4,
+        help="Number of generic data channels ch1..chN to create (default: 4).",
+    )
+    parser.add_argument(
         "--dataset-map",
         help=(
-            "JSON mapping of generic channel names (ch1–ch4) to HDF5 dataset names. "
-            'Full example: \'{"ch1": "x_pos", "ch2": "y_pos", "ch3": "z_pos", "ch4": "t"}\'. '
-            'Partial example (FXI-style, 2 channels): \'{"ch1": "enc1_pi_r", "ch2": "zebra_time"}\'. '
+            f"JSON mapping of generic channel names (ch1-ch{num_ch}) to HDF5 dataset names. "
+            'Partial FXI-style example: \'{"ch1": "enc1_pi_r", "ch2": "zebra_time"}\'. '
             "When omitted, the mapping is chosen from the built-in SRX defaults "
-            "based on the dev_type PV (zebra or scaler)."
+            "based on the dev_type PV (zebra or scaler); channels beyond 4 use "
+            'identity mapping (chN -> "chN").'
         ),
         type=json.loads,
         default=None,
     )
 
     ioc_options, run_options = check_args(parser, split_args)
-    dataset_map_arg = parser.parse_args().dataset_map
+    parsed = parser.parse_args()
 
-    ioc = ZebraSaveIOC(dataset_map=dataset_map_arg, **ioc_options)
+    ioc = DynamicIOC(dataset_map=parsed.dataset_map, **ioc_options)
     run(ioc.pvdb, **run_options)
