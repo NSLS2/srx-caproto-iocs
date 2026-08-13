@@ -1,6 +1,7 @@
 # pylint: disable=duplicate-code
 from __future__ import annotations
 
+import json
 import textwrap
 from enum import Enum
 
@@ -163,22 +164,53 @@ class ZebraSaveIOC(CaprotoSaveIOC):
     #     super().__init__(*args, **kwargs)
     #     self._external_pvs = external_pvs
 
+    #: Default dataset mappings keyed by dev_type. Keys are PV attribute names;
+    #: values are the corresponding HDF5 dataset names written to file.
+    _DEFAULT_DATASET_MAPS: dict[str, dict[str, str]] = {
+        DevTypes.ZEBRA.value: {
+            "enc1": "enc1",
+            "enc2": "enc2",
+            "enc3": "enc3",
+            "zebra_time": "zebra_time",
+        },
+        DevTypes.SCALER.value: {
+            "i0": "i0",
+            "im": "im",
+            "it": "it",
+            "sis_time": "sis_time",
+        },
+    }
+
+    def __init__(
+        self,
+        *args,
+        dataset_map: dict[str, str] | None = None,
+        **kwargs,
+    ):
+        """Init method.
+
+        Parameters
+        ----------
+        dataset_map : dict, optional
+            Mapping of PV attribute names to HDF5 dataset names, e.g.
+            ``{"enc1": "x_pos", "enc2": "y_pos"}``.  When *None* (default)
+            the mapping is chosen automatically based on the ``dev_type`` PV.
+        """
+        self._dataset_map = dataset_map
+        super().__init__(*args, **kwargs)
+
     async def _get_current_dataset(self, *args, **kwargs):  # pylint: disable=unused-argument
-        # , frame, external_pv="enc1"):
-        # client_context = Context()
-        # (pvobject,) = await client_context.get_pvs(self._external_pvs[external_pv])
-        # print(f"{pvobject = }")
-        # # pvobject = pvobjects[0]
-        # ret = await pvobject.read()
-
-        if self.dev_type.value == DevTypes.ZEBRA.value:
-            pvnames = ["enc1", "enc2", "enc3", "zebra_time"]
+        if self._dataset_map is not None:
+            mapping = self._dataset_map
+        elif self.dev_type.value == DevTypes.ZEBRA.value:
+            mapping = self._DEFAULT_DATASET_MAPS[DevTypes.ZEBRA.value]
         else:
-            pvnames = ["i0", "im", "it", "sis_time"]
+            mapping = self._DEFAULT_DATASET_MAPS[DevTypes.SCALER.value]
 
-        dataset = {}
-        for pvname in pvnames:
-            dataset[pvname] = getattr(self, pvname).value
+        dataset = {
+            hdf5_name: getattr(self, pv_attr).value
+            for pv_attr, hdf5_name in mapping.items()
+        }
 
         print(f"{now()}:\n{dataset}")
 
@@ -193,7 +225,7 @@ class ZebraSaveIOC(CaprotoSaveIOC):
             data = received["data"]
             # 'frame_number' is not used for this exporter.
             try:
-                save_hdf5_zebra(fname=filename, data=data, mode="x")
+                save_hdf5_zebra(fname=filename, data=data, mode="a")
                 print(f"{now()}: saved data into:\n  {filename}")
 
                 success = True
@@ -213,22 +245,21 @@ if __name__ == "__main__":
     parser, split_args = template_arg_parser(
         default_prefix="", desc=textwrap.dedent(ZebraSaveIOC.__doc__)
     )
+
+    parser.add_argument(
+        "--dataset-map",
+        help=(
+            "JSON mapping of PV attribute names to HDF5 dataset names, "
+            'e.g. \'{"enc1": "x_pos", "enc2": "y_pos"}\'. '
+            "When omitted, the mapping is chosen from the built-in SRX defaults "
+            "based on the dev_type PV (zebra or scaler)."
+        ),
+        type=json.loads,
+        default=None,
+    )
+
     ioc_options, run_options = check_args(parser, split_args)
+    dataset_map_arg = parser.parse_args().dataset_map
 
-    # external_pv_prefix = (
-    #     ioc_options["prefix"].replace("{{", "{").replace("}}", "}")
-    # )  # "XF:05IDD-ES:1{Dev:Zebra2}:"
-
-    # external_pvs = {
-    #     "pulse_step": external_pv_prefix + "PC_PULSE_STEP",
-    #     "data_in_progress": external_pv_prefix + "ARRAY_ACQ",
-    #     "enc1": external_pv_prefix + "PC_ENC1",
-    #     "enc2": external_pv_prefix + "PC_ENC2",
-    #     "enc3": external_pv_prefix + "PC_ENC3",
-    #     "enc4": external_pv_prefix + "PC_ENC4",
-    #     "time": external_pv_prefix + "PC_TIME",
-    # }
-
-    # ioc = ZebraSaveIOC(external_pvs=external_pvs, **ioc_options)
-    ioc = ZebraSaveIOC(**ioc_options)
+    ioc = ZebraSaveIOC(dataset_map=dataset_map_arg, **ioc_options)
     run(ioc.pvdb, **run_options)

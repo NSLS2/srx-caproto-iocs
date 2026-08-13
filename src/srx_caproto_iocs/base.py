@@ -214,7 +214,9 @@ class CaprotoSaveIOC(PVGroup):
             data = received["data"]
             frame_number = received["frame_number"]
             try:
-                save_hdf5_nd(fname=filename, data=data, mode="x", group_path="enc1")
+                save_hdf5_nd(
+                    fname=filename, data=data, mode="a", group_path="data/data"
+                )
                 print(
                     f"{now()}: saved {frame_number=} {data.shape} data into:\n  {filename}"
                 )
@@ -272,13 +274,11 @@ class OphydDeviceWithCaprotoIOC(Device):
         def cb(value, old_value, **kwargs):
             # pylint: disable=unused-argument
             # print(f"{now()}: {old_value} -> {value}")
-            if value == expected_new_value and old_value == expected_old_value:
-                return True
-            return False
+            return value == expected_new_value and old_value == expected_old_value
 
         st = SubscriptionStatus(obj, callback=cb, run=False)
         # print(f"{now()}: {cmd = }")
-        obj.put(cmd)
+        obj.put(cmd, timeout=10)
         return st
 
 
